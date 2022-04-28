@@ -7,7 +7,7 @@ Config.RosterLink = {
     ['doj'] = '',
 }
 
-Config.Fuel = "lj-fuel" -- "LegacyFuel", "lj-fuel"
+Config.Fuel = "LegacyFuel" -- "LegacyFuel", "lj-fuel"
 
 Config.PenalCodeTitles = {
     [1] = 'OFFENSES AGAINST PERSONS',
@@ -239,7 +239,7 @@ Config.PoliceJobs = {
 
 Config.AmbulanceJobs = {
     ['ambulance'] = true,
-    ['doctor'] = true
+    ['doctor'] = true,
 }
 
 Config.DojJobs = {
