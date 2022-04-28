@@ -3870,9 +3870,9 @@ $(document).ready(() => {
         let activeInfoJob = `<div class="unit-job active-info-job-unk">UNKNOWN</div>`;
         if (PoliceJobs[unit.unitType] !== undefined) {
           policeCount++;
-          activeInfoJob = `<div class="unit-job active-info-job-lspd">LSPD</div>`;
+          activeInfoJob = `<div class="unit-job active-info-job-lspd">POLICE</div>`;
         } else if (AmbulanceJobs[unit.unitType] !== undefined) {
-          activeInfoJob = `<div class="unit-job active-info-job-ambulance">Ambulance</div>`
+          activeInfoJob = `<div class="unit-job active-info-job-ambulance">FIRE/EMS</div>`
           emsCount++;
         /* } else if  (DojJobs[unit.unitType] !== undefined) {
           activeInfoJob = `<div class="unit-job active-info-job-fire">FIRE</div>`
