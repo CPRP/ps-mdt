@@ -1,7 +1,7 @@
 Config = Config or {}
 
 Config.RosterLink = {
-    ['police'] = '',
+    ['police'] = 'https://docs.google.com/spreadsheets/d/14fcmUe9-yDValV7tlbznw1jIneFwO3xs-K51S8Ld3Ng/edit#gid=457567805',
     ['ambulance'] = '',
     ['bcso'] = '',
     ['doj'] = '',
