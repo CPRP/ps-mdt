@@ -31,9 +31,8 @@ if Config.UseWolfknightRadar == true then
 		local src = source
 		local Player = QBCore.Functions.GetPlayer(src)
 		local bolo = GetBoloStatus(plate)
-		print(cam, plate, index)
 		if bolo == true then
-			TriggerClientEvent("wk:togglePlateLock", Player.PlayerData.source, cam, beep, bolo)
+			TriggerClientEvent("wk:togglePlateLock", src, cam, true, bolo)
 		end
 	end)
 end
@@ -712,7 +711,7 @@ QBCore.Functions.CreateCallback('mdt:server:SearchVehicles', function(source, cb
 
 				value.code = false
 				value.stolen = false
-				value.image = "img/not-found.jpg"
+				value.image = "img/not-found.webp"
 				local info = GetVehicleInformation(value.plate)
 				if info then
 					value.code = info['code5']
@@ -769,7 +768,7 @@ RegisterNetEvent('mdt:server:getVehicleData', function(plate)
 						vehicle[1]['stolen'] = info['stolen']
 					end
 
-					if vehicle[1]['image'] == nil then vehicle[1]['image'] = "img/not-found.jpg" end -- Image
+					if vehicle[1]['image'] == nil then vehicle[1]['image'] = "img/not-found.webp" end -- Image
 				end
 
 				TriggerClientEvent('mdt:client:getVehicleData', src, vehicle)
