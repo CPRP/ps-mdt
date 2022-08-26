@@ -182,3 +182,9 @@ function ManageLicenses(identifier, incomingLicenses)
         MySQL.query.await('UPDATE `players` SET `metadata` = @metadata WHERE citizenid = @citizenid', {['@metadata'] = json.encode(result), ['@citizenid'] = identifier})
     end
 end
+
+-- Added for Police Apartment Raids (to end)
+function GetPlayerApartment(cid, cb)
+    local result =  MySQL.query.await('SELECT name, type, label FROM apartments where citizenid = ?', {cid})
+    return result
+end
