@@ -230,6 +230,13 @@ QBCore.Functions.CreateCallback('mdt:server:GetProfileData', function(source, cb
 	}
 
 	local job, grade = UnpackJob(target.job)
+		
+	-- Added for Police Apartment Raids (235-239)
+	local apartmentData = GetPlayerApartment(target.citizenid)
+
+	if apartmentData then
+  		apartmentData = apartmentData[1].label .. ' (' ..apartmentData[1].name..')'
+	end
 
 	local person = {
 		cid = target.citizenid,
@@ -240,6 +247,7 @@ QBCore.Functions.CreateCallback('mdt:server:GetProfileData', function(source, cb
 		pp = ProfPic(target.charinfo.gender),
 		licences = licencesdata,
 		dob = target.charinfo.birthdate,
+		apartment = apartmentData, -- Added for Police Apartment Raids
 		mdtinfo = '',
 		fingerprint = '',
 		tags = {},
