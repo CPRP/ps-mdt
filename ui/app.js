@@ -189,6 +189,7 @@ $(document).ready(() => {
     $(".manage-profile-fingerprint").val(result["fingerprint"]);
     $(".manage-profile-fingerprint").removeAttr("disabled");
     $(".manage-profile-pic").attr("src", result["profilepic"] ?? "img/male.png");
+    $(".manage-profile-apartment-input").val(`${result.apartment}`); // -- Added for Police Apartment Raids
 
     const { vehicles, tags, gallery, convictions, properties } = result
 
