@@ -1070,6 +1070,25 @@ a {
     width: 55%;
 }
 
+/* -- Added for Police Apartment Raids (1074-1089) */
+.manage-profile-apartment {
+    color: white;
+    margin-left: 10px;
+    font-size: 15px;
+    user-select: none;
+}
+
+.manage-profile-apartment-input {
+    border: none;
+    outline: none;
+    margin-left: 2.5px;
+    font-size: 16px;
+    margin-top: 2px;
+    color: white;
+    background-color: rgba(0, 0, 0, 0);
+    width: 21.5vh;
+}
+
 .manage-profile-citizenid {
     color: white;
     margin-left: 10px;
