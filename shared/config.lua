@@ -254,6 +254,7 @@ Config.AmbulanceJobs = {
 
 Config.DojJobs = {
     ['lawyer'] = true,
+    ['judge'] = true,
 }
 
 -- Leave my hacky code alone ya goblins
