@@ -34,7 +34,8 @@ const AmbulanceJobs = {
 }
 
 const DojJobs = {
-  ['lawyer']: true
+  ['lawyer']: true,
+  ['judge']: true,
 }
 
 const MONTH_NAMES = [
