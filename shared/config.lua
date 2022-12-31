@@ -17,7 +17,7 @@ This will only check plates of vehicles that have been occupied by a player
 
 Config.OnlyShowOnDuty = true
 
-Config.Fuel = "LegacyFuel" -- "LegacyFuel", "lj-fuel"
+Config.Fuel = "cdn-fuel" -- "cdn-fuel", "lj-fuel"
 
 Config.PenalCodeTitles = {
     [1] = 'OFFENSES AGAINST PERSONS',
@@ -123,7 +123,7 @@ Config.PenalCode = {
         [3] = {title = 'Disturbing the Peace', class = 'infraction', id = 'P.C. 6003', months = 0, fine = 350, color = 'green', description = 'Unlawfully fighting, or challenging another person to fight, in a public place. Disturbing another person by loud and unreasonable noise; if this is done willfully and maliciously. Using offensive words in a public place, if the words are likely to provoke an immediate violent reaction'},
         [4] = {title = 'Accessory After-the-Fact', class = 'Felony', id = 'P.C. 6004', months = 3, fine = 750, color = 'orange', description = 'Willfully refusing or failing to comply with a lawful order, signal, or direction of any peace officer.'},
         [5] = {title = 'Harassment', class = 'Misdemeanor', id = 'P.C. 6005', months = 2, fine = 800, color = 'orange', description = 'To subject (another) to hostile or prejudicial remarks or actions; pressure or intimidate. 2. To irritate or torment persistently: His mind was harassed by doubts and misgivings.'},
-        [6] = {title = 'Misdemeanor Obstruction of Justice', class = 'Misdemeanor', id = 'P.C. 6006', months = , fine = 700, color = 'orange', description = 'attempting to Willfully tampers with the discovery, apprehension, conviction or punishment of a crime after a crime has been committed or charged.'},
+        [6] = {title = 'Misdemeanor Obstruction of Justice', class = 'Misdemeanor', id = 'P.C. 6006', months = 500, fine = 700, color = 'orange', description = 'attempting to Willfully tampers with the discovery, apprehension, conviction or punishment of a crime after a crime has been committed or charged.'},
         [7] = {title = 'Felony Obstruction of Justice', class = 'Felony', id = 'P.C. 6007', months = 5, fine = 1900, color = 'red', description = 'Willfully tampers with the discovery, apprehension, conviction or punishment of a crime after a crime has been committed or charged.'},
         [8] = {title = 'Inciting a Riot', class = 'Felony', id = 'P.C. 6008', months = 0, fine = 1000, color = 'orange', description = 'Organizes an event/assembly which results in violent conduct or creates a risk of causing public harm with a group of at least four people.'},
         [9] = {title = 'Loitering on Government Properties', class = 'Infraction', id = 'P.C. 6009', months = 0, fine = 500, color = 'green', description = 'Standing or waiting idly without purpose on Government Properties.'},
@@ -160,7 +160,7 @@ Config.PenalCode = {
         [6] = {title = 'Criminal Sale of Weapon Class 3', class = 'Felony', id = 'P.C. 8007', months = 10, fine = 7000, color = 'red', description = 'the sale of a snipers unlawfully'},
         [7] = {title = 'Criminal Use of Weapon', class = 'Misdemeanor', id = 'P.C. 8009', months = 4, fine = 1450, color = 'orange', description = 'The act of using of any weapon unlawfully by pointing or discharging'},
         [8] = {title = 'Possession of Illegal Firearm Modifications', class = 'Misdemeanor', id = 'P.C. 8010', months = 3, fine = 1300, color = 'orange', description = 'Possession of any Illegal Firearm Modifications items such as A Silencer, Fore Grip extended magazine, flashlight.'},
-        [9] = {title = 'Weapon Trafficking', class = 'Felony', id = 'P.C. 8011', months = 12, fine = 10000 color = 'red', description = 'Being in possession of at least 5 Class 2 or 3 weapons or facilitating the sale of any Class 2 weapons. '},
+        [9] = {title = 'Weapon Trafficking', class = 'Felony', id = 'P.C. 8011', months = 12, fine = 10000, color = 'red', description = 'Being in possession of at least 5 Class 2 or 3 weapons or facilitating the sale of any Class 2 weapons. '},
         [10] = {title = 'Brandishing a Weapon', class = 'Misdemeanor', id = 'P.C. 8012', months = 2, fine = 500, color = 'orange', description = 'Drawing or exhibiting a weapon in a rude, angry, or threatening manner in the presence of another and not in defense of self or another person.'},
         [11] = {title = 'Insurrection', class = 'Felony', id = 'P.C. 8013', months = 20, fine = 10000, color = 'red', description = 'Whoever incites, sets on foot, assists, or engages in any rebellion or insurrection against the authority of the United States or the laws thereof, or gives aid or comfort thereto,'},
         [12] = {title = 'Flying into Restricted Airspace', class = 'Felony', id = 'P.C. 8014', months = 10, fine = 1500, color = 'green', description = 'Flying into Restricted Airspace'},
