@@ -206,6 +206,7 @@ Config.PenalCode = {
         [7] = {title = 'Poaching', class = 'Felony', id = 'P.C. 10007', months = 5, fine = 1250, color = 'red', description = 'Poaching is defined as either illegally killing a protected species or overhunting and exceeding a hunting limit.'},
     }
 }
+
 Config.PoliceJobs = {
     ['police'] = true,
     ['lspd'] = true,
