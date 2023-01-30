@@ -225,7 +225,7 @@ Config.AmbulanceJobs = {
 
 Config.DojJobs = {
     ['lawyer'] = true,
-    ['judge'] = true,
+    ['judge'] = true
 }
 
 -- Leave my hacky code alone ya goblins
@@ -613,7 +613,9 @@ end
 
 -- this is a hack, because the qb-menu in qb-policejob populates an impound location and passed it through to the event.
 -- if this impound locations are changed in qb-policejob, they must also be changed here.
-Config.ImpoundLocations = { 
-    [1] = vector4(0, 0, 0, 0),
-    [2] = vector4(0, 0, 0, 0),
+Config.ImpoundLocations = {
+    [1] = vector4(-152.45, -1170.02, 23.77, 272.67), -- LS Depot
+    [2] = vector4(1863.19, 3695.99, 33.97, 123.42), -- BCSO
+    [3] = vector4(1529.99, 779.41, 77.44, 37.85), -- SASP
+    [4] = vector4(-471.61, 6034.41, 31.34, 218.81), -- Paleto
 }
