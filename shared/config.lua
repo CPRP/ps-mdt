@@ -31,6 +31,7 @@ Config.PenalCodeTitles = {
     [9] = 'OFFENSES INVOLVING THE OPERATION OF A VEHICLE',
     [10] = 'OFFENSES INVOLVING THE WELL-BEING OF WILDLIFE',
 }
+
 Config.PenalCode = {
     [1] = {
         [1] = {title = 'Simple Assault', class = 'Misdemeanor', id = 'P.C. 1001', months = 1, fine = 500, color = 'orange', description = 'Attempts to or commits injury upon another person without the use of a weapon'},
