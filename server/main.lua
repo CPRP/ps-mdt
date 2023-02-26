@@ -1320,12 +1320,49 @@ RegisterNetEvent('mdt:server:sendCallResponse', function(message, time, callid)
 	end
 end)
 
+-- RegisterNetEvent('mdt:server:setRadio', function(cid, newRadio)
+-- 	local src = source
+-- 	local Player = QBCore.Functions.GetPlayer(src)
+-- 	if Player.PlayerData.citizenid ~= cid then
+-- 		TriggerClientEvent("QBCore:Notify", src, 'You can only change your radio!', 'error')
+-- 		return
+-- 	else
+-- 		local radio = Player.Functions.GetItemByName("radio")
+-- 		if radio ~= nil then
+-- 			TriggerClientEvent('mdt:client:setRadio', src, newRadio)
+-- 		else
+-- 			TriggerClientEvent("QBCore:Notify", src, 'You do not have a radio!', 'error')
+-- 		end
+-- 	end
+
+-- end)
+
+--[[NEW CODE TO ALLOW OFFICERS TO CHANGE EACHOTHERS RADIOS]]
 RegisterNetEvent('mdt:server:setRadio', function(cid, newRadio)
 	local src = source
 	local Player = QBCore.Functions.GetPlayer(src)
-	if Player.PlayerData.citizenid ~= cid then
-		TriggerClientEvent("QBCore:Notify", src, 'You can only change your radio!', 'error')
+	
+	-- check if the player has the police job
+	if Player.PlayerData.job.name ~= 'police' then
+		TriggerClientEvent("QBCore:Notify", src, 'You do not have the required job to do this!', 'error')
 		return
+	end
+	
+	-- check if the player is changing their own radio or someone else's
+	if Player.PlayerData.citizenid ~= cid then
+		-- get the player by their citizen id
+		local target = QBCore.Functions.GetPlayerByCitizenId(cid)
+		if target ~= nil then
+			local radio = target.Functions.GetItemByName("radio")
+			if radio ~= nil then
+				TriggerClientEvent('mdt:client:setRadio', target.PlayerData.source, newRadio)
+				TriggerClientEvent("QBCore:Notify", src, 'You have changed the radio of '..target.PlayerData.charinfo.firstname..' '..target.PlayerData.charinfo.lastname..'.', 'success')
+			else
+				TriggerClientEvent("QBCore:Notify", src, target.PlayerData.charinfo.firstname..' '..target.PlayerData.charinfo.lastname..' does not have a radio!', 'error')
+			end
+		else
+			TriggerClientEvent("QBCore:Notify", src, 'Invalid citizen id!', 'error')
+		end
 	else
 		local radio = Player.Functions.GetItemByName("radio")
 		if radio ~= nil then
@@ -1336,6 +1373,7 @@ RegisterNetEvent('mdt:server:setRadio', function(cid, newRadio)
 	end
 
 end)
+
 
 local function isRequestVehicle(vehId)
 	local found = false
