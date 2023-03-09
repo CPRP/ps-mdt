@@ -44,10 +44,10 @@ function GetPfpFingerPrintInformation(cid)
 	return result[1]
 end
 
--- idk but I guess sure?
 function GetIncidentName(id)
 	-- Should also be a scalar
-	return MySQL.query.await('SELECT title FROM `mdt_incidents` WHERE id = :id LIMIT 1', { id = id })
+	local result = MySQL.query.await('SELECT title FROM `mdt_incidents` WHERE id = :id LIMIT 1', { id = id })
+    return result[1]
 	-- return exports.oxmysql:executeSync('SELECT title FROM `mdt_incidents` WHERE id = :id LIMIT 1', { id = id })
 end
 
@@ -186,10 +186,4 @@ function ManageLicenses(identifier, incomingLicenses)
         end
         MySQL.query.await('UPDATE `players` SET `metadata` = @metadata WHERE citizenid = @citizenid', {['@metadata'] = json.encode(result), ['@citizenid'] = identifier})
     end
-end
-
--- Added for Police Apartment Raids (to end)
-function GetPlayerApartment(cid, cb)
-    local result =  MySQL.query.await('SELECT name, type, label FROM apartments where citizenid = ?', {cid})
-    return result
 end

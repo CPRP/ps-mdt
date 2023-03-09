@@ -5,9 +5,16 @@ Config.RosterLink = {
     ['ambulance'] = 'https://docs.google.com/spreadsheets/d/1ouE-mSdW3rd5f3MbTPL9vZp9fZQtBCx5VGBsNRpncbU/edit#gid=900021388',
     ['bcso'] = '',
     ['doj'] = '',
+    ['sast'] = '',
+    ['sasp'] = '',
+    ['doc'] = '',
+    ['lssd'] = '',
+    ['sapr'] = '',	
 }
 
+
 Config.UseWolfknightRadar = true
+Config.WolfknightNotifyTime = 5000 --How long the notification displays for in milliseconds (30000 = 30 seconds)
 --[[
 Adds support for Wraith ARS 2X by WolfKnight98 (wk_wars2x)
 https://github.com/WolfKnight98/wk_wars2x
@@ -215,13 +222,14 @@ Config.PoliceJobs = {
     ['sast'] = true,
     ['sasp'] = true,
     ['doc'] = true,
+    ['lssd'] = true,
     ['sapr'] = true,
     ['pa'] = true -- yucky
 }
 
 Config.AmbulanceJobs = {
     ['ambulance'] = true,
-    ['doctor'] = true,
+    ['doctor'] = true
 }
 
 Config.DojJobs = {
@@ -247,6 +255,24 @@ Config.LogPerms = {
 		[4] = true,
 	},
 	['police'] = {
+		[4] = true,
+	},
+    ['bcso'] = {
+		[4] = true,
+	},
+    ['sast'] = {
+		[4] = true,
+	},
+    ['sasp'] = {
+		[4] = true,
+	},
+    ['sapr'] = {
+		[4] = true,
+	},
+    ['doc'] = {
+		[4] = true,
+	},
+    ['lssd'] = {
 		[4] = true,
 	},
 }
