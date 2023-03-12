@@ -2499,6 +2499,14 @@ $(document).ready(() => {
           let bolo = "red-tag";
           let codefive = "red-tag";
           let stolen = "red-tag";
+          let insurance = "green-tag";  //m-insurance
+
+          if (value.insurance == 'Expired') {
+            insurance = "red-tag";
+          } else if (!value.insurance) {
+            insurance = "red-tag";
+            value.insurance = "don't have"
+          }
 
           if (value.state == 'Impounded') {
             impound = "green-tag";
@@ -2527,6 +2535,7 @@ $(document).ready(() => {
                                         <div class="dmv-tag ${impound}">Impound</div>
                                         <div class="dmv-tag ${bolo}">BOLO</div>
                                         <div class="dmv-tag ${stolen}">Stolen</div>
+                                        <div class="dmv-tag ${insurance}">Insurance: ${value.insurance}</div>
                                         <div class="dmv-tag ${codefive}">Code 5</div>
                                     </div>
                                 </div>
@@ -4925,6 +4934,18 @@ $(document).ready(() => {
       let bolo = "red-tag";
       let codefive = "red-tag";
       let stolen = "red-tag";
+      let insurance = "green-tag"; //m-insurance
+
+      if (table.insurance == 'Expired') {
+        insurance = "red-tag";
+      } else if (table.insurance == null) {
+        insurance = "red-tag";
+        table.insurance = "don't have"
+      }
+      
+      $(".vehicle-tags").append(
+        `<div class="vehicle-tag ${insurance}">${table.insurance}</div>`
+      );
 
       if (table.impound) {
         impound = "green-tag";
