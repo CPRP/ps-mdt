@@ -51,14 +51,16 @@ if Config.UseWolfknightRadar == true then
 		local driverunlicensed = nil
 
 		if bolo == true then
-			TriggerClientEvent('QBCore:Notify', src, 'BOLO ID: '..boloId..' | Title: '..title..' | Registered Owner: '..vehicleOwner..' | Plate: '..plate, 'error', Config.WolfknightNotifyTime)
+			TriggerClientEvent('QBCore:Notify', src, 'BOLO ID: '..boloId..' | Title: '..title..' | Registered Owner: '..(vehicleOwner or "Unknown")..' | Plate: '..plate, 'error', Config.WolfknightNotifyTime)
+			-- TriggerClientEvent('QBCore:Notify', src, 'BOLO ID: '..boloId..' | Title: '..title..' | Registered Owner: '..vehicleOwner..' | Plate: '..plate, 'error', Config.WolfknightNotifyTime)
 		end
 		if warrant == true then
 			TriggerClientEvent('QBCore:Notify', src, 'WANTED - INCIDENT ID: '..incidentId..' | Registered Owner: '..owner..' | Plate: '..plate, 'error', Config.WolfknightNotifyTime)
 		end
 
 		if driversLicense == false then
-			TriggerClientEvent('QBCore:Notify', src, 'NO DRIVERS LICENCE | Registered Owner: '..vehicleOwner..' | Plate: '..plate, 'error', Config.WolfknightNotifyTime)
+			TriggerClientEvent('QBCore:Notify', src, 'NO DRIVERS LICENCE | Registered Owner: '..(vehicleOwner or "Unknown")..' | Plate: '..plate, 'error', Config.WolfknightNotifyTime)
+			-- TriggerClientEvent('QBCore:Notify', src, 'NO DRIVERS LICENCE | Registered Owner: '..vehicleOwner..' | Plate: '..plate, 'error', Config.WolfknightNotifyTime)
 		end
 
 
@@ -692,7 +694,7 @@ RegisterNetEvent('mdt:server:searchReports', function(sentSearch)
 		end
 	end
 end)
-
+	
 RegisterNetEvent('mdt:server:newReport', function(existing, id, title, reporttype, details, tags, gallery, officers, civilians, time)
 	if id then
 		local src = source
@@ -761,7 +763,8 @@ QBCore.Functions.CreateCallback('mdt:server:SearchVehicles', function(source, cb
 	if Player then
 		local JobType = GetJobType(Player.PlayerData.job.name)
 		if JobType == 'police' or JobType == 'doj' then
-			local vehicles = MySQL.query.await("SELECT pv.id, pv.citizenid, pv.plate, pv.vehicle, pv.mods, pv.state, p.charinfo FROM `player_vehicles` pv LEFT JOIN players p ON pv.citizenid = p.citizenid WHERE LOWER(`plate`) LIKE :query OR LOWER(`vehicle`) LIKE :query LIMIT 25", {
+			local vehicles = MySQL.query.await("SELECT pv.id, pv.citizenid, pv.plate, pv.vehicle, pv.mods, pv.insurance, pv.state, p.charinfo FROM `player_vehicles` pv LEFT JOIN players p ON pv.citizenid = p.citizenid WHERE LOWER(`plate`) LIKE :query OR LOWER(`vehicle`) LIKE :query LIMIT 25", { -- m-insurance
+			-- local vehicles = MySQL.query.await("SELECT pv.id, pv.citizenid, pv.plate, pv.vehicle, pv.mods, pv.state, p.charinfo FROM `player_vehicles` pv LEFT JOIN players p ON pv.citizenid = p.citizenid WHERE LOWER(`plate`) LIKE :query OR LOWER(`vehicle`) LIKE :query LIMIT 25", {
 				query = string.lower('%'..sentData..'%')
 			})
 
@@ -774,6 +777,19 @@ QBCore.Functions.CreateCallback('mdt:server:SearchVehicles', function(source, cb
 					value.state = "Garaged"
 				elseif value.state == 2 then
 					value.state = "Impounded"
+				end
+
+				if not value.insurance then -- m-insurance
+					value.insurance = null
+				  else
+					local timeInSeconds = os.time(os.date('*t'))
+					if (timeInSeconds >= value.insurance) then
+					  value.insurance = "Expired"
+					else
+					  local dateObj = os.date("*t", value.insurance)
+					  local date = dateObj.day.."/"..dateObj.month.."/"..dateObj.year
+					  value.insurance = date
+					end
 				end
 
 				value.bolo = false
@@ -826,6 +842,20 @@ RegisterNetEvent('mdt:server:getVehicleData', function(plate)
 
 					local ownerResult = json.decode(vehicle[1].charinfo)
 					vehicle[1]['name'] = ownerResult['firstname'] .. " " .. ownerResult['lastname']
+
+					local insuranceExpire = json.decode(vehicle[1].insurance)
+					if not insuranceExpire then
+						vehicle[1]['insurance'] = null
+						else
+						local timeInSeconds = os.time(os.date('*t'))
+						if (timeInSeconds >= insuranceExpire) then
+							vehicle[1]['insurance'] = "Expired"
+						else
+							local dateObj = os.date("*t", insuranceExpire)
+							local date = dateObj.day.."/"..dateObj.month.."/"..dateObj.year
+							vehicle[1]['insurance'] = date
+						end
+					end
 
 					local color1 = json.decode(vehicle[1].mods)
 					vehicle[1]['color1'] = color1['color1']
