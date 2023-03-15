@@ -203,6 +203,8 @@ Config.PenalCode = {
         [23] = {title = 'Piloting without Proper Licensing', class = 'Felony', id = 'P.C. 9022', months = 5, fine = 1500, color = 'red', description = 'Piloting without a Licensing without'},
         [24] = {title = 'Improper or Missing Plates/Registration', class = 'Misdemeanor', id = 'P.C. 9023', months = 0, fine = 750, color = 'orange', description = 'All motor vehicles must have a visible and valid (registered) license plate on the rear of the motor vehicle in order to operate on a public road. The plate must match the motor vehicle it is attached to. The plate may not be obstructed or obfuscated. Front license plates are optional.'},
         [25] = {title = 'Impeding Traffic', class = 'Misdemeanor', id = 'P.C. 9024', months = 0, fine = 650, color = 'orange', description = 'The act of blocking the flow of traffic on a public road or idling/stopping the vehicle in the middle of traffic.'},
+        [26] = {title = 'Operating A Motor Vehicle Without Insurance', class = 'Misdemeanor', id = 'P.C. 9025', months = 0, fine = 800, color = 'orange', description = 'Person who operates a motor vehicles on a public road without have a proof/valid insurance.'},
+        [27] = {title = 'Operating A Motor Vehicle Without Valid Registration', class = 'Misdemeanor', id = 'P.C. 9026', months = 2, fine = 1200, color = 'orange', description = 'Person who operates a motor vehicles on a public road without have a proof/valid Registration.'},
     },
     [10] = {
         [1] = {title = 'Hunting in Restricted Areas', class = 'Infraction', id = 'P.C. 10001', months = 0, fine = 450, color = 'green', description = 'Hunting in Restricted Areas'},
