@@ -194,6 +194,7 @@ $(document).ready(() => {
     $(".manage-profile-name-input-1").val(result["firstname"]);
     $(".manage-profile-name-input-2").val(result["lastname"]);
     $(".manage-profile-dob-input").val(result["dob"]);
+    $(".manage-profile-phonenumber-input").val(result["phone"]);
     $(".manage-profile-job-input").val(`${result.job}, ${result.grade}`);
     $(".manage-profile-apartment-input").val(`${result.apartment}`);
     $(".manage-profile-url-input").val(result["profilepic"] ?? "");
@@ -2535,7 +2536,6 @@ $(document).ready(() => {
                                         <div class="dmv-tag ${impound}">Impound</div>
                                         <div class="dmv-tag ${bolo}">BOLO</div>
                                         <div class="dmv-tag ${stolen}">Stolen</div>
-                                        <div class="dmv-tag ${insurance}">Insurance: ${value.insurance}</div>
                                         <div class="dmv-tag ${codefive}">Code 5</div>
                                     </div>
                                 </div>
@@ -2981,7 +2981,7 @@ $(document).ready(() => {
 
                                 </div>
                                 <div class="weapons-bottom-info">
-                                  <div class="weapons-id">Serial Number: ${value.serial} · Owner: ${value.owner}</div>
+                                  <div class="weapons-id">Serial Number: ${value.serial} · Owner: ${value.owner} · ID: ${value.id}</div>
                                 </div>
                             </div>
                         </div>
@@ -3877,6 +3877,9 @@ $(document).ready(() => {
         $("#reports-officers-involved-tag-title").html(
           "Officers Involved"
         );
+        $("#bolos-officers-involved-tag-title").html(
+          "Officers Involved"
+        );
         $(".roster-iframe").attr("src", rosterLink);
 
         $(".manage-profile-save").css("display", "block");
@@ -3930,7 +3933,12 @@ $(document).ready(() => {
         $(".incidents-nav-item").hide();
         $(".dmv-nav-item").hide();
         $(".cams-nav-item").hide();
-        $("#reports-officers-involved-tag-title").html("EMS Involved");
+        $("#reports-officers-involved-tag-title").html(
+          "EMS Involved"
+        );
+        $("#bolos-officers-involved-tag-title").html(
+          "EMS Involved"
+        );
         $(".dispatch-title-ofsomesort").html("Dispatch");
         $(".dispatch-comms-container").fadeIn(0);
         $(".manage-profile-name-input-1").attr("readonly", true);
@@ -4519,6 +4527,31 @@ $(document).ready(() => {
                 </div>`
         );
       });
+      $(".contextmenu").on("click", ".incidents-delete", function () {
+        $(".incidents-items")
+          .find(`[data-id="${$(this).data("info")}"]`)
+          .remove();
+        $.post(
+          `https://${GetParentResourceName()}/deleteIncidents`,
+          JSON.stringify({
+            id: $(this).data("info"),
+          })
+        );
+      });
+    
+      $(".incidents-items").on("contextmenu", ".incidents-item", function (e) {
+        var args = "";
+        args = [
+          {
+            className: "incidents-delete",
+            icon: "fas fa-times",
+            text: "Delete Incidents",
+            info: $(this).data("id"),
+            status: "",
+          },
+        ];
+        openContextMenu(e, args);
+      });
     } else if (eventData.type == "getPenalCode") {
       const titles = eventData.titles;
       const penalcode = eventData.penalcode;
@@ -4860,6 +4893,31 @@ $(document).ready(() => {
                 </div>`
         );
       });
+      $(".contextmenu").on("click", ".reports-delete", function () {
+        $(".reports-items")
+          .find(`[data-id="${$(this).data("info")}"]`)
+          .remove();
+        $.post(
+          `https://${GetParentResourceName()}/deleteReports`,
+          JSON.stringify({
+            id: $(this).data("info"),
+          })
+        );
+      });
+    
+      $(".reports-items").on("contextmenu", ".reports-item", function (e) {
+        var args = "";
+        args = [
+          {
+            className: "reports-delete",
+            icon: "fas fa-times",
+            text: "Delete Report",
+            info: $(this).data("id"),
+            status: "",
+          },
+        ];
+        openContextMenu(e, args);
+      });
     } else if (eventData.type == "reportData") {
       let table = eventData.data;
 
@@ -4985,6 +5043,31 @@ $(document).ready(() => {
       $(".weapon-info-image").attr("src", table["image"]);
 
       $(".weapon-info-imageurl-input").val(table["image"]);
+      $(".contextmenu").on("click", ".weapons-delete", function () {
+        $(".weapons-items")
+          .find(`[data-id="${$(this).data("info")}"]`)
+          .remove();
+        $.post(
+          `https://${GetParentResourceName()}/deleteWeapons`,
+          JSON.stringify({
+            id: $(this).data("info"),
+          })
+        );
+      });
+    
+      $(".weapons-items").on("contextmenu", ".weapons-item", function (e) {
+        var args = "";
+        args = [
+          {
+            className: "weapons-delete",
+            icon: "fas fa-times",
+            text: "Delete Weapon Info",
+            info: $(this).data("id"),
+            status: "",
+          },
+        ];
+        openContextMenu(e, args);
+      });
     } else if (eventData.type == "updateVehicleDbId") {
       $(".vehicle-information-title-holder").data("dbid", Number(eventData.data));
     } else if (eventData.type == "updateIncidentDbId") {
@@ -5372,7 +5455,7 @@ function searchProfilesResults(result) {
                               </div>
                           </div>
                           <div class="profile-bottom-info">
-                              <div class="profile-id">ID: ${value.citizenid}</div>&nbsp;
+                              <div class="profile-id"><span class="fas fa-id-card"></span> Citizen ID: ${value.citizenid}</div>&nbsp;
                           </div>
                       </div>
                   </div>
@@ -5536,4 +5619,3 @@ $(".map-clear").on('click', function() {
       ClearMap();
     }, 1500);
 });
-

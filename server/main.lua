@@ -3,6 +3,7 @@ local QBCore = exports['qb-core']:GetCoreObject()
 local incidents = {}
 local convictions = {}
 local bolos = {}
+local MugShots = {}
 
 -- TODO make it departments compatible
 local activeUnits = {}
@@ -264,7 +265,7 @@ QBCore.Functions.CreateCallback('mdt:server:GetProfileData', function(source, cb
 
 	local apartmentData = GetPlayerApartment(target.citizenid)
 
-	if apartmentData then
+	if Config.UsingDefaultQBApartments and apartmentData then
 		apartmentData = apartmentData[1].label .. ' (' ..apartmentData[1].name..')'
 	end
 
@@ -279,6 +280,7 @@ QBCore.Functions.CreateCallback('mdt:server:GetProfileData', function(source, cb
 		licences = licencesdata,
 		dob = target.charinfo.birthdate,
 		apartment = apartmentData, -- Added for Police Apartment Raids
+		phone = target.charinfo.phone,
 		mdtinfo = '',
 		fingerprint = '',
 		tags = {},
@@ -375,7 +377,7 @@ end)
 RegisterNetEvent("mdt:server:saveProfile", function(pfp, information, cid, fName, sName, tags, gallery, fingerprint, licenses)
 	local src = source
 	local Player = QBCore.Functions.GetPlayer(src)
-	ManageLicenses(cid, licenses)
+	UpdateAllLicenses(cid, licenses)
 	if Player then
 		local JobType = GetJobType(Player.PlayerData.job.name)
 		if JobType == 'doj' then JobType = 'police' end
@@ -389,6 +391,22 @@ RegisterNetEvent("mdt:server:saveProfile", function(pfp, information, cid, fName
 			fingerprint = fingerprint,
 		})
 	end
+end)
+
+-- mugshot
+RegisterNetEvent('cqc-mugshot:server:triggerSuspect', function(suspect)
+    TriggerClientEvent('cqc-mugshot:client:trigger', suspect, suspect)
+end)
+
+RegisterNetEvent('psmdt-mugshot:server:MDTupload', function(citizenid, MugShotURLs)
+    MugShots[citizenid] = MugShotURLs
+    local cid = citizenid
+    MySQL.Async.insert('INSERT INTO mdt_data (cid, pfp, gallery, tags) VALUES (:cid, :pfp, :gallery, :tags) ON DUPLICATE KEY UPDATE cid = :cid,  pfp = :pfp, tags = :tags, gallery = :gallery', {
+		cid = cid,
+		pfp = MugShotURLs[1],
+		tags = json.encode(tags),
+		gallery = json.encode(MugShotURLs),
+	})
 end)
 
 RegisterNetEvent("mdt:server:updateLicense", function(cid, type, status)
@@ -574,6 +592,64 @@ RegisterNetEvent('mdt:server:newBolo', function(existing, id, title, plate, owne
 	end
 end)
 
+RegisterNetEvent('mdt:server:deleteWeapons', function(id)
+	if id then
+		local src = source
+		local Player = QBCore.Functions.GetPlayer(src)
+		if Config.LogPerms[Player.PlayerData.job.name] then
+			if Config.LogPerms[Player.PlayerData.job.name][Player.PlayerData.job.grade.level] then
+				local fullName = Player.PlayerData.charinfo.firstname .. ' ' .. Player.PlayerData.charinfo.lastname
+				MySQL.update("DELETE FROM `mdt_weaponinfo` WHERE id=:id", { id = id })
+				TriggerEvent('mdt:server:AddLog', "A Weapon Info was deleted by "..fullName.." with the ID ("..id..")")
+			else
+				local fullname = Player.PlayerData.charinfo.firstname .. ' ' .. Player.PlayerData.charinfo.lastname
+				TriggerClientEvent("QBCore:Notify", src, 'No Permissions to do that!', 'error')
+				TriggerEvent('mdt:server:AddLog', fullname.." tryed to delete a Weapon Info with the ID ("..id..")")
+			end
+		end
+	end
+end)
+
+RegisterNetEvent('mdt:server:deleteReports', function(id)
+	if id then
+		local src = source
+		local Player = QBCore.Functions.GetPlayer(src)
+		if Config.LogPerms[Player.PlayerData.job.name] then
+			if Config.LogPerms[Player.PlayerData.job.name][Player.PlayerData.job.grade.level] then
+				local fullName = Player.PlayerData.charinfo.firstname .. ' ' .. Player.PlayerData.charinfo.lastname
+				MySQL.update("DELETE FROM `mdt_reports` WHERE id=:id", { id = id })
+				TriggerEvent('mdt:server:AddLog', "A Report was deleted by "..fullName.." with the ID ("..id..")")
+			else
+				local fullname = Player.PlayerData.charinfo.firstname .. ' ' .. Player.PlayerData.charinfo.lastname
+				TriggerClientEvent("QBCore:Notify", src, 'No Permissions to do that!', 'error')
+				TriggerEvent('mdt:server:AddLog', fullname.." tryed to delete a Report with the ID ("..id..")")
+			end
+		end
+	end
+end)
+
+RegisterNetEvent('mdt:server:deleteIncidents', function(id)
+	local result = MySQL.update("DELETE FROM `mdt_incidents` WHERE id=:id", { id = id })
+	
+	if id then
+		local src = source
+		local Player = QBCore.Functions.GetPlayer(src)
+		if Config.LogPerms[Player.PlayerData.job.name] then
+			if Config.LogPerms[Player.PlayerData.job.name][Player.PlayerData.job.grade.level] then
+				local fullName = Player.PlayerData.charinfo.firstname .. ' ' .. Player.PlayerData.charinfo.lastname
+				MySQL.update("DELETE FROM `mdt_incidents` WHERE id=:id", { id = id }, function(rowsChanged)
+					if rowsChanged > 0 then
+						TriggerEvent('mdt:server:AddLog', "A Incident was deleted by "..fullName.." with the ID ("..id..")")
+					end
+				end)
+			else
+				local fullname = Player.PlayerData.charinfo.firstname .. ' ' .. Player.PlayerData.charinfo.lastname
+				TriggerClientEvent("QBCore:Notify", src, 'No Permissions to do that!', 'error')
+				TriggerEvent('mdt:server:AddLog', fullname.." tryed to delete a Incident with the ID ("..id..")")
+			end
+		end
+	end
+end)
 RegisterNetEvent('mdt:server:deleteBolo', function(id)
 	if id then
 		local src = source
@@ -606,7 +682,7 @@ RegisterNetEvent('mdt:server:incidentSearchPerson', function(query)
 		local Player = QBCore.Functions.GetPlayer(src)
 		if Player then
 			local JobType = GetJobType(Player.PlayerData.job.name)
-			if JobType == 'police' or JobType == 'doj' then
+			if JobType == 'police' or JobType == 'doj' or JobType == 'ambulance' then
 				local function ProfPic(gender, profilepic)
 					if profilepic then return profilepic end;
 					if gender == "f" then return "img/female.png" end;
@@ -1017,8 +1093,15 @@ RegisterNetEvent('mdt:server:saveWeaponInfo', function(serial, imageurl, notes, 
 end)
 
 function CreateWeaponInfo(serial, imageurl, notes, owner, weapClass, weapModel)
+
+	local results = MySQL.query.await('SELECT * FROM mdt_weaponinfo WHERE serial = ?', { serial })
+	if results[1] then
+		return
+	end
+
 	if serial == nil then return end
 	if imageurl == nil then imageurl = 'img/not-found.webp' end
+
 	MySQL.Async.insert('INSERT INTO mdt_weaponinfo (serial, owner, information, weapClass, weapModel, image) VALUES (:serial, :owner, :notes, :weapClass, :weapModel, :imageurl) ON DUPLICATE KEY UPDATE owner = :owner, information = :notes, weapClass = :weapClass, weapModel = :weapModel, image = :imageurl', {
 		['serial'] = serial,
 		['owner'] = owner,
@@ -1030,7 +1113,6 @@ function CreateWeaponInfo(serial, imageurl, notes, owner, weapClass, weapModel)
 end
 
 exports('CreateWeaponInfo', CreateWeaponInfo)
---exports['ps-mdt']:CreateWeaponInfo(serial, imageurl, notes, owner, weapClass, weapModel)
 
 RegisterNetEvent('mdt:server:getWeaponData', function(serial)
 	if serial then
@@ -1575,11 +1657,45 @@ function GetVehicleOwner(plate)
 		return owner
 	end
 end
+
 -- Returns the source for the given citizenId
 QBCore.Functions.CreateCallback('mdt:server:GetPlayerSourceId', function(source, cb, targetCitizenId)
 	local targetPlayer = QBCore.Functions.GetPlayerByCitizenId(targetCitizenId)
 	local targetSource = targetPlayer.PlayerData.source
 
 	cb(targetSource)
+
 end)
 
+QBCore.Functions.CreateCallback('getWeaponInfo', function(source, cb)
+    local Player = QBCore.Functions.GetPlayer(source)
+    local weaponInfo = nil
+    for _, item in pairs(Player.PlayerData.items) do
+		if item.type == "weapon" then
+			local invImage = ("https://cfx-nui-qb-inventory/html/images/%s"):format(item.image)
+			if invImage then
+				weaponInfo = {
+					serialnumber = item.info.serie,
+					owner = Player.PlayerData.charinfo.firstname .. " " .. Player.PlayerData.charinfo.lastname,
+					weaponmodel = QBCore.Shared.Items[item.name].label,
+					weaponurl = invImage,
+					notes = "Self Registered",
+					weapClass = "Class 1",
+
+				}
+				break
+			end
+		end
+	end
+    if weaponInfo then
+        TriggerClientEvent('QBCore:Notify', source, "Weapon has been added to police database. ")
+    else
+        TriggerClientEvent('QBCore:Notify', source, "Weapon already registered on database.")
+    end
+
+    cb(weaponInfo)
+end)
+
+RegisterNetEvent('mdt:server:registerweapon', function(serial, imageurl, notes, owner, weapClass, weapModel) 
+    exports['ps-mdt']:CreateWeaponInfo(serial, imageurl, notes, owner, weapClass, weapModel)
+end)
