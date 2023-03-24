@@ -3,14 +3,18 @@ Config = Config or {}
 Config.UsingDefaultQBApartments = true
 
 Config.OnlyShowOnDuty = true
-
 Config.UseCQCMugshot = false
 Config.MugPhotos = 1 -- Front, Back Side. Use 4 for both sides ( default is 1 )
 Config.Webhook = '' -- Images will be uploaded here ( add a discord webhook )
 
+-- Set up your inventory to automatically retrieve images when a weapon is registered at a weapon shop or self-registered.
+-- If you're utilizing lj-inventory's latest version from GitHub, no further modifications are necessary. 
+-- However, if you're using a different inventory system, please refer to the "Inventory Edit | Automatic Add Weapons with images" section in ps-mdt's README.
+Config.InventoryForWeaponsImages = "lj-inventory"
+
 Config.Fuel = "cdn-fuel" -- "LegacyFuel", "lj-fuel"
 
-Config.RosterLink = {
+Config.RosterLink = { -- Google Docs Link
     ['police'] = 'https://docs.google.com/spreadsheets/d/11UoHJ9OC2nnv-aX4Kmq4H_9k9yvwqEYO3C6pFSwf74k/edit?usp=sharing',
     ['ambulance'] = 'https://docs.google.com/spreadsheets/d/1ouE-mSdW3rd5f3MbTPL9vZp9fZQtBCx5VGBsNRpncbU/edit#gid=900021388',
     ['bcso'] = 'https://docs.google.com/spreadsheets/d/11UoHJ9OC2nnv-aX4Kmq4H_9k9yvwqEYO3C6pFSwf74k/edit?usp=sharing',
@@ -19,7 +23,7 @@ Config.RosterLink = {
     ['sasp'] = 'https://docs.google.com/spreadsheets/d/11UoHJ9OC2nnv-aX4Kmq4H_9k9yvwqEYO3C6pFSwf74k/edit?usp=sharing',
     ['doc'] = '',
     ['lssd'] = '',
-    ['sapr'] = 'https://docs.google.com/spreadsheets/d/11UoHJ9OC2nnv-aX4Kmq4H_9k9yvwqEYO3C6pFSwf74k/edit?usp=sharing',	
+    ['sapr'] = 'https://docs.google.com/spreadsheets/d/11UoHJ9OC2nnv-aX4Kmq4H_9k9yvwqEYO3C6pFSwf74k/edit?usp=sharing',		
 }
 
 Config.PoliceJobs = {
