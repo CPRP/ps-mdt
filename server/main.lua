@@ -302,11 +302,14 @@ QBCore.Functions.CreateCallback('mdt:server:GetProfileData', function(source, cb
 				-- Get the incident details
 				local id = conv.linkedincident
 				local incident = GetIncidentName(id)
-				incidents[#incidents + 1] = {
-					id = id,
-					title = incident.title,
-					time = conv.time
-				}
+
+				if incident then
+					incidents[#incidents + 1] = {
+						id = id,
+						title = incident.title,
+						time = conv.time
+					}
+				end
 
 				local charges = json.decode(conv.charges)
 				for _, charge in pairs(charges) do
@@ -363,21 +366,19 @@ QBCore.Functions.CreateCallback('mdt:server:GetProfileData', function(source, cb
 	return cb(person)
 end)
 
-RegisterNetEvent("mdt:server:saveProfile", function(pfp, information, cid, fName, sName, fingerprint, tags, gallery, licenses)
+RegisterNetEvent("mdt:server:saveProfile", function(pfp, information, cid, fName, sName, tags, gallery, licenses)
 	local src = source
 	local Player = QBCore.Functions.GetPlayer(src)
 	UpdateAllLicenses(cid, licenses)
 	if Player then
 		local JobType = GetJobType(Player.PlayerData.job.name)
 		if JobType == 'doj' then JobType = 'police' end
-		MySQL.Async.insert('INSERT INTO mdt_data (cid, information, pfp, jobtype, fingerprint, tags, gallery) VALUES (:cid, :information, :pfp, :jobtype, :fingerprint, :tags, :gallery) ON DUPLICATE KEY UPDATE cid = :cid, information = :information, pfp = :pfp, fingerprint = :fingerprint, tags = :tags, gallery = :gallery', {
-			cid = cid,
+		MySQL.Async.insert('INSERT INTO mdt_data (cid, information, pfp, jobtype, tags, gallery) VALUES (:cid, :information, :pfp, :jobtype, :tags, :gallery) ON DUPLICATE KEY UPDATE cid = :cid, information = :information, pfp = :pfp, tags = :tags, gallery = :gallery', {			cid = cid,
 			information = information,
 			pfp = pfp,
 			jobtype = JobType,
 			tags = json.encode(tags),
 			gallery = json.encode(gallery),
-			fingerprint = fingerprint,
 		})
 	end
 end)
@@ -618,27 +619,24 @@ RegisterNetEvent('mdt:server:deleteReports', function(id)
 end)
 
 RegisterNetEvent('mdt:server:deleteIncidents', function(id)
-	local result = MySQL.update("DELETE FROM `mdt_incidents` WHERE id=:id", { id = id })
-	
-	if id then
-		local src = source
-		local Player = QBCore.Functions.GetPlayer(src)
-		if Config.LogPerms[Player.PlayerData.job.name] then
-			if Config.LogPerms[Player.PlayerData.job.name][Player.PlayerData.job.grade.level] then
-				local fullName = Player.PlayerData.charinfo.firstname .. ' ' .. Player.PlayerData.charinfo.lastname
-				MySQL.update("DELETE FROM `mdt_convictions` WHERE `linkedincident` = :id", {id = id}) 
-				MySQL.update("DELETE FROM `mdt_incidents` WHERE id=:id", { id = id }, function(rowsChanged)
-					if rowsChanged > 0 then
-						TriggerEvent('mdt:server:AddLog', "A Incident was deleted by "..fullName.." with the ID ("..id..")")
-					end
-				end)
-			else
-				local fullname = Player.PlayerData.charinfo.firstname .. ' ' .. Player.PlayerData.charinfo.lastname
-				TriggerClientEvent("QBCore:Notify", src, 'No Permissions to do that!', 'error')
-				TriggerEvent('mdt:server:AddLog', fullname.." tryed to delete a Incident with the ID ("..id..")")
-			end
-		end
-	end
+    local src = source
+    local Player = QBCore.Functions.GetPlayer(src)
+    if Config.LogPerms[Player.PlayerData.job.name] then
+        if Config.LogPerms[Player.PlayerData.job.name][Player.PlayerData.job.grade.level] then
+            local fullName = Player.PlayerData.charinfo.firstname .. ' ' .. Player.PlayerData.charinfo.lastname
+            MySQL.update("DELETE FROM `mdt_convictions` WHERE `linkedincident` = :id", {id = id})
+            MySQL.update("UPDATE `mdt_convictions` SET `warrant` = '0' WHERE `linkedincident` = :id", {id = id}) -- Delete any outstanding warrants from incidents
+            MySQL.update("DELETE FROM `mdt_incidents` WHERE id=:id", { id = id }, function(rowsChanged)
+                if rowsChanged > 0 then
+                    TriggerEvent('mdt:server:AddLog', "A Incident was deleted by "..fullName.." with the ID ("..id..")")
+                end
+            end)
+        else
+            local fullname = Player.PlayerData.charinfo.firstname .. ' ' .. Player.PlayerData.charinfo.lastname
+            TriggerClientEvent("QBCore:Notify", src, 'No Permissions to do that!', 'error')
+            TriggerEvent('mdt:server:AddLog', fullname.." tried to delete an Incident with the ID ("..id..")")
+        end
+    end
 end)
 
 RegisterNetEvent('mdt:server:deleteBolo', function(id)

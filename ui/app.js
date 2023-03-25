@@ -560,7 +560,6 @@ $(document).ready(() => {
             sName: sName,
             tags: tags,
             gallery: gallery,
-            fingerprint: fingerprint,
             licenses: licenses
           })
         );
@@ -2547,7 +2546,7 @@ $(document).ready(() => {
             insurance = "red-tag";
             value.insurance = "don't have"
           }
-
+                                        // end
           if (value.state == 'Impounded') {
             impound = "green-tag";
           }
@@ -2575,6 +2574,7 @@ $(document).ready(() => {
                                         <div class="dmv-tag ${impound}">Impound</div>
                                         <div class="dmv-tag ${bolo}">BOLO</div>
                                         <div class="dmv-tag ${stolen}">Stolen</div>
+                                        <div class="dmv-tag ${insurance}">Insurance: ${value.insurance}</div>
                                         <div class="dmv-tag ${codefive}">Code 5</div>
                                     </div>
                                 </div>
@@ -5090,7 +5090,7 @@ $(document).ready(() => {
       $(".vehicle-tags").append(
         `<div class="vehicle-tag ${insurance}">${table.insurance}</div>`
       );
-
+                                  // end
       if (table.impound) {
         impound = "green-tag";
       }
@@ -5494,22 +5494,30 @@ function searchProfilesResults(result) {
 
   result.forEach((value) => {
     let charinfo = value.charinfo;
-    let metadata = value.licences;
-
+    let metadata = value.metadata;
+  
     if (typeof value.charinfo == "string") {
       charinfo = JSON.parse(charinfo);
     }
-
+  
     if (typeof value.metadata == "string") {
       metadata = JSON.parse(metadata);
     }
-
+  
+    if (!metadata) {
+      metadata = {};
+    }
+  
+    if (!metadata.licences) {
+      metadata.licences = {};
+    }
+  
     let name = charinfo.firstname + " " + charinfo.lastname;
     let warrant = "red-tag";
     let convictions = "red-tag";
-
+  
     let licences = "";
-    let licArr = Object.entries(value.licences);
+    let licArr = Object.entries(metadata.licences);
 
     if (licArr.length == 0 || licArr.length == undefined) {
       var licenseTypes = ['business', 'pilot', 'weapon', 'driver'];
