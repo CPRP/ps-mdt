@@ -1,16 +1,13 @@
 local QBCore = exports['qb-core']:GetCoreObject()
--- Maybe cache?
 local incidents = {}
 local convictions = {}
 local bolos = {}
 local MugShots = {}
-
--- TODO make it departments compatible
 local activeUnits = {}
-
 local impound = {}
 local dispatchMessages = {}
 local isDispatchRunning = false
+local antiSpam = false
 
 local function GetActiveData(cid)
 	local player = type(cid) == "string" and cid or tostring(cid)
@@ -49,7 +46,6 @@ if Config.UseWolfknightRadar == true then
 		local bolo, title, boloId = GetBoloStatus(plate)
 		local warrant, owner, incidentId = GetWarrantStatus(plate)
 		local driversLicense = PlayerData.metadata['licences'].driver
-		local driverunlicensed = nil
 
 		if bolo == true then
 			TriggerClientEvent('QBCore:Notify', src, 'BOLO ID: '..boloId..' | Title: '..title..' | Registered Owner: '..vehicleOwner..' | Plate: '..plate, 'error', Config.WolfknightNotifyTime)
@@ -58,17 +54,26 @@ if Config.UseWolfknightRadar == true then
 			TriggerClientEvent('QBCore:Notify', src, 'WANTED - INCIDENT ID: '..incidentId..' | Registered Owner: '..owner..' | Plate: '..plate, 'error', Config.WolfknightNotifyTime)
 		end
 
-		if driversLicense == false and vehicleOwner then
+		if Config.PlateScanForDriversLicense and driversLicense == false and vehicleOwner then
 			TriggerClientEvent('QBCore:Notify', src, 'NO DRIVERS LICENCE | Registered Owner: '..vehicleOwner..' | Plate: '..plate, 'error', Config.WolfknightNotifyTime)
 		end
 
-		if bolo or warrant or not driversLicense then
-
-		TriggerClientEvent("wk:togglePlateLock", src, cam, true, 1)
+		if bolo or warrant or (Config.PlateScanForDriversLicense and not driversLicense) then
+			TriggerClientEvent("wk:togglePlateLock", src, cam, true, 1)
 		end
-
 	end)
 end
+
+AddEventHandler('onResourceStart', function(resourceName)
+    if GetCurrentResourceName() ~= resourceName then return end
+	Wait(3000)
+	if Config.MugShotWebhook == '' then
+		print("\27[31mA webhook is missing in: Config.MugShotWebhook\27[0m")
+    end
+    if Config.ClockinWebhook == '' then
+		print("\27[31mA webhook is missing in: Config.ClockinWebhook\27[0m")
+	end
+end)
 
 RegisterNetEvent("ps-mdt:server:OnPlayerUnload", function()
 	--// Delete player from the MDT on logout
@@ -79,24 +84,44 @@ RegisterNetEvent("ps-mdt:server:OnPlayerUnload", function()
 	end
 end)
 
-AddEventHandler("playerDropped", function(reason)
-	--// Delete player from the MDT on logout
-	local src = source
-	local player = QBCore.Functions.GetPlayer(src)
-	if player ~= nil then
-		if GetActiveData(player.PlayerData.citizenid) then
-			activeUnits[player.PlayerData.citizenid] = nil
-		end
-	else
-		local license = QBCore.Functions.GetIdentifier(src, "license")
-		local citizenids = GetCitizenID(license)
+AddEventHandler('playerDropped', function(reason)
+    local src = source
+    local PlayerData = GetPlayerData(src)
+    local time = os.date("%Y-%m-%d %H:%M:%S")
+    local job = PlayerData.job.name
+    local firstName = PlayerData.charinfo.firstname:sub(1,1):upper()..PlayerData.charinfo.firstname:sub(2)
+    local lastName = PlayerData.charinfo.lastname:sub(1,1):upper()..PlayerData.charinfo.lastname:sub(2)
 
-		for _, v in pairs(citizenids) do
-			if GetActiveData(v.citizenid) then
-				activeUnits[v.citizenid] = nil
-			end
+    -- Auto clock out if the player is off duty
+     if IsPoliceOrEms(job) and PlayerData.job.onduty then
+		MySQL.query.await('UPDATE mdt_clocking SET clock_out_time = NOW(), total_time = TIMESTAMPDIFF(SECOND, clock_in_time, NOW()) WHERE user_id = @user_id ORDER BY id DESC LIMIT 1', {
+			['@user_id'] = PlayerData.citizenid
+		})
+
+		local result = MySQL.scalar.await('SELECT total_time FROM mdt_clocking WHERE user_id = @user_id', {
+			['@user_id'] = PlayerData.citizenid
+		})
+		if result then
+			local time_formatted = format_time(tonumber(result))
+			sendToDiscord(16711680, "MDT Clock-Out", 'Player: **' ..  firstName .. " ".. lastName .. '**\n\nJob: **' .. PlayerData.job.name .. '**\n\nRank: **' .. PlayerData.job.grade.name .. '**\n\nStatus: **Off Duty**\n Total time:' .. time_formatted, "ps-mdt | Made by Project Sloth")
 		end
 	end
+
+    -- Delete player from the MDT on logout
+    if PlayerData ~= nil then
+        if GetActiveData(PlayerData.citizenid) then
+            activeUnits[PlayerData.citizenid] = nil
+        end
+    else
+        local license = QBCore.Functions.GetIdentifier(src, "license")
+        local citizenids = GetCitizenID(license)
+
+        for _, v in pairs(citizenids) do
+            if GetActiveData(v.citizenid) then
+                activeUnits[v.citizenid] = nil
+            end
+        end
+    end
 end)
 
 RegisterNetEvent("ps-mdt:server:ToggleDuty", function()
@@ -110,14 +135,68 @@ RegisterNetEvent("ps-mdt:server:ToggleDuty", function()
     end
 end)
 
+QBCore.Commands.Add("mdtleaderboard", "Show MDT leaderboard", {}, false, function(source, args)
+    local PlayerData = GetPlayerData(source)
+    local job = PlayerData.job.name
+
+    if not IsPoliceOrEms(job) then
+        TriggerClientEvent('QBCore:Notify', source, "You don't have permission to use this command.", 'error')
+        return
+    end
+
+	local result = MySQL.Sync.fetchAll('SELECT firstname, lastname, total_time FROM mdt_clocking ORDER BY total_time DESC')
+
+    local leaderboard_message = '**MDT Leaderboard**\n\n'
+
+    for i, record in ipairs(result) do
+		local firstName = record.firstname:sub(1,1):upper()..record.firstname:sub(2)
+		local lastName = record.lastname:sub(1,1):upper()..record.lastname:sub(2)
+		local total_time = format_time(record.total_time)
+	
+		leaderboard_message = leaderboard_message .. i .. '. **' .. firstName .. ' ' .. lastName .. '** - ' .. total_time .. '\n'
+	end
+
+    sendToDiscord(16753920, "MDT Leaderboard", leaderboard_message, "ps-mdt | Made by Project Sloth")
+    TriggerClientEvent('QBCore:Notify', source, "MDT leaderboard sent to Discord!", 'success')
+end)
+
+RegisterNetEvent("ps-mdt:server:ClockSystem", function()
+    local src = source
+    local PlayerData = GetPlayerData(src)
+    local time = os.date("%Y-%m-%d %H:%M:%S")
+    local firstName = PlayerData.charinfo.firstname:sub(1,1):upper()..PlayerData.charinfo.firstname:sub(2)
+    local lastName = PlayerData.charinfo.lastname:sub(1,1):upper()..PlayerData.charinfo.lastname:sub(2)
+    if PlayerData.job.onduty then
+        
+        TriggerClientEvent('QBCore:Notify', source, "You're clocked-in", 'success')
+		MySQL.Async.insert('INSERT INTO mdt_clocking (user_id, firstname, lastname, clock_in_time) VALUES (:user_id, :firstname, :lastname, :clock_in_time) ON DUPLICATE KEY UPDATE user_id = :user_id, firstname = :firstname, lastname = :lastname, clock_in_time = :clock_in_time', {
+			user_id = PlayerData.citizenid,
+			firstname = firstName,
+			lastname = lastName,
+			clock_in_time = time
+		}, function()
+		end)
+		sendToDiscord(65280, "MDT Clock-In", 'Player: **' ..  firstName .. " ".. lastName .. '**\n\nJob: **' .. PlayerData.job.name .. '**\n\nRank: **' .. PlayerData.job.grade.name .. '**\n\nStatus: **On Duty**', "ps-mdt | Made by Project Sloth")
+    else
+		TriggerClientEvent('QBCore:Notify', source, "You're clocked-out", 'success')
+		MySQL.query.await('UPDATE mdt_clocking SET clock_out_time = NOW(), total_time = TIMESTAMPDIFF(SECOND, clock_in_time, NOW()) WHERE user_id = @user_id ORDER BY id DESC LIMIT 1', {
+			['@user_id'] = PlayerData.citizenid
+		})
+
+		local result = MySQL.scalar.await('SELECT total_time FROM mdt_clocking WHERE user_id = @user_id', {
+			['@user_id'] = PlayerData.citizenid
+		})
+		local time_formatted = format_time(tonumber(result))
+
+		sendToDiscord(16711680, "MDT Clock-Out", 'Player: **' ..  firstName .. " ".. lastName .. '**\n\nJob: **' .. PlayerData.job.name .. '**\n\nRank: **' .. PlayerData.job.grade.name .. '**\n\nStatus: **Off Duty**\n Total time:' .. time_formatted, "ps-mdt | Made by Project Sloth")
+    end
+end)
+
 RegisterNetEvent('mdt:server:openMDT', function()
 	local src = source
 	local PlayerData = GetPlayerData(src)
 	if not PermCheck(src, PlayerData) then return end
 	local Radio = Player(src).state.radioChannel or 0
-	--[[ if Radio > 100 then
-		Radio = 0
-	end ]]
 
 	activeUnits[PlayerData.citizenid] = {
 		cid = PlayerData.citizenid,
@@ -132,49 +211,52 @@ RegisterNetEvent('mdt:server:openMDT', function()
 	local JobType = GetJobType(PlayerData.job.name)
 	local bulletin = GetBulletins(JobType)
 	local calls = exports['ps-dispatch']:GetDispatchCalls()
-	--TriggerClientEvent('mdt:client:dashboardbulletin', src, bulletin)
 	TriggerClientEvent('mdt:client:open', src, bulletin, activeUnits, calls, PlayerData.citizenid)
-	--TriggerClientEvent('mdt:client:GetActiveUnits', src, activeUnits)
 end)
 
 QBCore.Functions.CreateCallback('mdt:server:SearchProfile', function(source, cb, sentData)
-	if not sentData then  return cb({}) end
-	local src = source
-	local Player = QBCore.Functions.GetPlayer(src)
-	if Player then
-		local JobType = GetJobType(Player.PlayerData.job.name)
-		if JobType ~= nil then
-			local people = MySQL.query.await("SELECT p.citizenid, p.charinfo, md.pfp FROM players p LEFT JOIN mdt_data md on p.citizenid = md.cid WHERE LOWER(CONCAT(JSON_VALUE(p.charinfo, '$.firstname'), ' ', JSON_VALUE(p.charinfo, '$.lastname'))) LIKE :query OR LOWER(`charinfo`) LIKE :query OR LOWER(`citizenid`) LIKE :query AND jobtype = :jobtype LIMIT 20", { query = string.lower('%'..sentData..'%'), jobtype = JobType })
-			local citizenIds = {}
-			local citizenIdIndexMap = {}
-			if not next(people) then cb({}) return end
+    if not sentData then  return cb({}) end
+    local src = source
+    local Player = QBCore.Functions.GetPlayer(src)
+    if Player then
+        local JobType = GetJobType(Player.PlayerData.job.name)
+        if JobType ~= nil then
+            local people = MySQL.query.await("SELECT p.citizenid, p.charinfo, md.pfp, md.fingerprint FROM players p LEFT JOIN mdt_data md on p.citizenid = md.cid WHERE LOWER(CONCAT(JSON_VALUE(p.charinfo, '$.firstname'), ' ', JSON_VALUE(p.charinfo, '$.lastname'))) LIKE :query OR LOWER(`charinfo`) LIKE :query OR LOWER(`citizenid`) LIKE :query OR LOWER(md.fingerprint) LIKE :query AND jobtype = :jobtype LIMIT 20", { query = string.lower('%'..sentData..'%'), jobtype = JobType })
+            local citizenIds = {}
+            local citizenIdIndexMap = {}
+            if not next(people) then cb({}) return end
 
-			for index, data in pairs(people) do
-				people[index]['warrant'] = false
-				people[index]['convictions'] = 0
-				people[index]['licences'] = GetPlayerLicenses(data.citizenid)
-				people[index]['pp'] = ProfPic(data.gender, data.pfp)
-				citizenIds[#citizenIds+1] = data.citizenid
-				citizenIdIndexMap[data.citizenid] = index
-			end
+            for index, data in pairs(people) do
+                people[index]['warrant'] = false
+                people[index]['convictions'] = 0
+                people[index]['licences'] = GetPlayerLicenses(data.citizenid)
+                people[index]['pp'] = ProfPic(data.gender, data.pfp)
+				if data.fingerprint and data.fingerprint ~= "" then
+					people[index]['fingerprint'] = data.fingerprint
+				else
+					people[index]['fingerprint'] = ""
+				end				
+                citizenIds[#citizenIds+1] = data.citizenid
+                citizenIdIndexMap[data.citizenid] = index
+            end
 
-			local convictions = GetConvictions(citizenIds)
+            local convictions = GetConvictions(citizenIds)
 
-			if next(convictions) then
-				for _, conv in pairs(convictions) do
-					if conv.warrant == "1" then people[citizenIdIndexMap[conv.cid]].warrant = true end
+            if next(convictions) then
+                for _, conv in pairs(convictions) do
+                    if conv.warrant == "1" then people[citizenIdIndexMap[conv.cid]].warrant = true end
 
-					local charges = json.decode(conv.charges)
-					people[citizenIdIndexMap[conv.cid]].convictions = people[citizenIdIndexMap[conv.cid]].convictions + #charges
-				end
-			end
+                    local charges = json.decode(conv.charges)
+                    people[citizenIdIndexMap[conv.cid]].convictions = people[citizenIdIndexMap[conv.cid]].convictions + #charges
+                end
+            end
+			TriggerClientEvent('mdt:client:searchProfile', src, people, false)
 
+            return cb(people)
+        end
+    end
 
-			return cb(people)
-		end
-	end
-
-	return cb({})
+    return cb({})
 end)
 
 QBCore.Functions.CreateCallback("mdt:server:getWarrants", function(source, cb)
@@ -242,7 +324,6 @@ QBCore.Functions.CreateCallback('mdt:server:GetProfileData', function(source, cb
 
 	if not target or not next(target) then return cb({}) end
 
-	-- Convert to string because bad code, yes?
 	if type(target.job) == 'string' then target.job = json.decode(target.job) end
 	if type(target.charinfo) == 'string' then target.charinfo = json.decode(target.charinfo) end
 	if type(target.metadata) == 'string' then target.metadata = json.decode(target.metadata) end
@@ -326,7 +407,7 @@ QBCore.Functions.CreateCallback('mdt:server:GetProfileData', function(source, cb
 
 		for _,v in ipairs(person.convictions2) do
 			if (not hash[v]) then
-				person.convictions[#person.convictions+1] = v -- found this dedupe method on sourceforge somewhere, copy+pasta dev, needs to be refined later
+				person.convictions[#person.convictions+1] = v
 				hash[v] = true
 			end
 		end
@@ -350,9 +431,7 @@ QBCore.Functions.CreateCallback('mdt:server:GetProfileData', function(source, cb
                 coords = tostring(Coords[index]["coords"]["enter"]["x"]..",".. Coords[index]["coords"]["enter"]["y"].. ",".. Coords[index]["coords"]["enter"]["z"]),
             }
         end
-		-- if properties then
 			person.properties = Houses
-		-- end
 	end
 
 	local mdtData = GetPersonInformation(sentId, JobType)
@@ -361,29 +440,36 @@ QBCore.Functions.CreateCallback('mdt:server:GetProfileData', function(source, cb
 		person.profilepic = mdtData.pfp
 		person.tags = json.decode(mdtData.tags)
 		person.gallery = json.decode(mdtData.gallery)
+		person.fingerprint = mdtData.fingerprint
+		print("Fetched fingerprint from mdt_data:", mdtData.fingerprint)
 	end
 
 	return cb(person)
 end)
 
-RegisterNetEvent("mdt:server:saveProfile", function(pfp, information, cid, fName, sName, tags, gallery, licenses)
-	local src = source
-	local Player = QBCore.Functions.GetPlayer(src)
-	UpdateAllLicenses(cid, licenses)
-	if Player then
-		local JobType = GetJobType(Player.PlayerData.job.name)
-		if JobType == 'doj' then JobType = 'police' end
-		MySQL.Async.insert('INSERT INTO mdt_data (cid, information, pfp, jobtype, tags, gallery) VALUES (:cid, :information, :pfp, :jobtype, :tags, :gallery) ON DUPLICATE KEY UPDATE cid = :cid, information = :information, pfp = :pfp, tags = :tags, gallery = :gallery', {			cid = cid,
-			information = information,
-			pfp = pfp,
-			jobtype = JobType,
-			tags = json.encode(tags),
-			gallery = json.encode(gallery),
-		})
-	end
+RegisterNetEvent("mdt:server:saveProfile", function(pfp, information, cid, fName, sName, tags, gallery, licenses, fingerprint)
+    local src = source
+    local Player = QBCore.Functions.GetPlayer(src)
+    UpdateAllLicenses(cid, licenses)
+    if Player then
+        local JobType = GetJobType(Player.PlayerData.job.name)
+        if JobType == 'doj' then JobType = 'police' end
+
+        MySQL.Async.insert('INSERT INTO mdt_data (cid, information, pfp, jobtype, tags, gallery, fingerprint) VALUES (:cid, :information, :pfp, :jobtype, :tags, :gallery, :fingerprint) ON DUPLICATE KEY UPDATE cid = :cid, information = :information, pfp = :pfp, jobtype = :jobtype, tags = :tags, gallery = :gallery, fingerprint = :fingerprint', {
+            cid = cid,
+            information = information,
+            pfp = pfp,
+            jobtype = JobType,
+            tags = json.encode(tags),
+            gallery = json.encode(gallery),
+            fingerprint = fingerprint,
+        }, function()
+        end)
+    end
 end)
 
--- mugshot
+
+-- Mugshotd
 RegisterNetEvent('cqc-mugshot:server:triggerSuspect', function(suspect)
     TriggerClientEvent('cqc-mugshot:client:trigger', suspect, suspect)
 end)
@@ -410,7 +496,6 @@ RegisterNetEvent("mdt:server:updateLicense", function(cid, type, status)
 end)
 
 -- Incidents
-
 
 RegisterNetEvent('mdt:server:getAllIncidents', function()
 	local src = source
@@ -586,8 +671,8 @@ RegisterNetEvent('mdt:server:deleteWeapons', function(id)
 	if id then
 		local src = source
 		local Player = QBCore.Functions.GetPlayer(src)
-		if Config.LogPerms[Player.PlayerData.job.name] then
-			if Config.LogPerms[Player.PlayerData.job.name][Player.PlayerData.job.grade.level] then
+		if Config.RemoveWeaponsPerms[Player.PlayerData.job.name] then
+			if Config.RemoveWeaponsPerms[Player.PlayerData.job.name][Player.PlayerData.job.grade.level] then
 				local fullName = Player.PlayerData.charinfo.firstname .. ' ' .. Player.PlayerData.charinfo.lastname
 				MySQL.update("DELETE FROM `mdt_weaponinfo` WHERE id=:id", { id = id })
 				TriggerEvent('mdt:server:AddLog', "A Weapon Info was deleted by "..fullName.." with the ID ("..id..")")
@@ -604,8 +689,8 @@ RegisterNetEvent('mdt:server:deleteReports', function(id)
 	if id then
 		local src = source
 		local Player = QBCore.Functions.GetPlayer(src)
-		if Config.LogPerms[Player.PlayerData.job.name] then
-			if Config.LogPerms[Player.PlayerData.job.name][Player.PlayerData.job.grade.level] then
+		if Config.RemoveReportPerms[Player.PlayerData.job.name] then
+			if Config.RemoveReportPerms[Player.PlayerData.job.name][Player.PlayerData.job.grade.level] then
 				local fullName = Player.PlayerData.charinfo.firstname .. ' ' .. Player.PlayerData.charinfo.lastname
 				MySQL.update("DELETE FROM `mdt_reports` WHERE id=:id", { id = id })
 				TriggerEvent('mdt:server:AddLog', "A Report was deleted by "..fullName.." with the ID ("..id..")")
@@ -621,8 +706,8 @@ end)
 RegisterNetEvent('mdt:server:deleteIncidents', function(id)
     local src = source
     local Player = QBCore.Functions.GetPlayer(src)
-    if Config.LogPerms[Player.PlayerData.job.name] then
-        if Config.LogPerms[Player.PlayerData.job.name][Player.PlayerData.job.grade.level] then
+    if Config.RemoveIncidentPerms[Player.PlayerData.job.name] then
+        if Config.RemoveIncidentPerms[Player.PlayerData.job.name][Player.PlayerData.job.grade.level] then
             local fullName = Player.PlayerData.charinfo.firstname .. ' ' .. Player.PlayerData.charinfo.lastname
             MySQL.update("DELETE FROM `mdt_convictions` WHERE `linkedincident` = :id", {id = id})
             MySQL.update("UPDATE `mdt_convictions` SET `warrant` = '0' WHERE `linkedincident` = :id", {id = id}) -- Delete any outstanding warrants from incidents
@@ -667,34 +752,41 @@ end)
 
 RegisterNetEvent('mdt:server:incidentSearchPerson', function(query)
     if query then
-		local src = source
-		local Player = QBCore.Functions.GetPlayer(src)
-		if Player then
-			local JobType = GetJobType(Player.PlayerData.job.name)
-			if JobType == 'police' or JobType == 'doj' or JobType == 'ambulance' then
-				local function ProfPic(gender, profilepic)
-					if profilepic then return profilepic end;
-					if gender == "f" then return "img/female.png" end;
-					return "img/male.png"
-				end
+        local src = source
+        local Player = QBCore.Functions.GetPlayer(src)
+        if Player then
+            local JobType = GetJobType(Player.PlayerData.job.name)
+            if JobType == 'police' or JobType == 'doj' or JobType == 'ambulance' then
+                local function ProfPic(gender, profilepic)
+                    if profilepic then return profilepic end;
+                    if gender == "f" then return "img/female.png" end;
+                    return "img/male.png"
+                end
 
-				local result = MySQL.query.await("SELECT p.citizenid, p.charinfo, p.metadata, md.pfp from players p LEFT JOIN mdt_data md on p.citizenid = md.cid WHERE LOWER(`charinfo`) LIKE :query OR LOWER(`citizenid`) LIKE :query AND `jobtype` = :jobtype LIMIT 30", {
-					query = string.lower('%'..query..'%'), -- % wildcard, needed to search for all alike results
-					jobtype = JobType
-				})
-				local data = {}
-				for i=1, #result do
-					local charinfo = json.decode(result[i].charinfo)
-					local metadata = json.decode(result[i].metadata)
-					data[i] = {
-						id = result[i].citizenid,
-						firstname = charinfo.firstname,
-						lastname = charinfo.lastname,
-						profilepic = ProfPic(charinfo.gender, result[i].pfp),
-						callsign = metadata.callsign
-					}
-				end
-				TriggerClientEvent('mdt:client:incidentSearchPerson', src, data)
+                local firstname, lastname = query:match("^(%S+)%s*(%S*)$")
+                firstname = firstname or query
+                lastname = lastname or query
+
+                local result = MySQL.query.await("SELECT p.citizenid, p.charinfo, p.metadata, md.pfp from players p LEFT JOIN mdt_data md on p.citizenid = md.cid WHERE (LOWER(JSON_UNQUOTE(JSON_EXTRACT(`charinfo`, '$.firstname'))) LIKE :firstname AND LOWER(JSON_UNQUOTE(JSON_EXTRACT(`charinfo`, '$.lastname'))) LIKE :lastname) OR LOWER(`citizenid`) LIKE :citizenid AND `jobtype` = :jobtype LIMIT 30", {
+                    firstname = string.lower('%' .. firstname .. '%'),
+                    lastname = string.lower('%' .. lastname .. '%'),
+                    citizenid = string.lower('%' .. query .. '%'),
+                    jobtype = JobType
+                })
+
+                local data = {}
+                for i=1, #result do
+                    local charinfo = json.decode(result[i].charinfo)
+                    local metadata = json.decode(result[i].metadata)
+                    data[i] = {
+                        id = result[i].citizenid,
+                        firstname = charinfo.firstname,
+                        lastname = charinfo.lastname,
+                        profilepic = ProfPic(charinfo.gender, result[i].pfp),
+                        callsign = metadata.callsign
+                    }
+                end
+                TriggerClientEvent('mdt:client:incidentSearchPerson', src, data)
             end
         end
     end
@@ -874,7 +966,6 @@ QBCore.Functions.CreateCallback('mdt:server:SearchVehicles', function(source, cb
 
 				value.owner = ownerResult['firstname'] .. " " .. ownerResult['lastname']
 			end
-			-- idk if this works or I have to call cb first then return :shrug:
 			return cb(vehicles)
 		end
 
@@ -934,7 +1025,7 @@ RegisterNetEvent('mdt:server:getVehicleData', function(plate)
 						vehicle[1]['stolen'] = info['stolen']
 					end
 
-					if vehicle[1]['image'] == nil then vehicle[1]['image'] = "img/not-found.webp" end -- Image
+					if vehicle[1]['image'] == nil then vehicle[1]['image'] = "img/not-found.webp" end
 				end
 
 				TriggerClientEvent('mdt:client:getVehicleData', src, vehicle)
@@ -980,7 +1071,7 @@ RegisterNetEvent('mdt:server:saveVehicleInfo', function(dbid, plate, imageurl, n
 									fee = fee,
 									time = os.time() + (time * 60)
 								}, function(res)
-									-- notify?
+
 									local data = {
 										vehicleid = data['id'],
 										plate = plate,
@@ -1438,7 +1529,6 @@ RegisterNetEvent('mdt:server:sendMessage', function(message, time)
 				}
 				dispatchMessages[#dispatchMessages+1] = Item
 				TriggerClientEvent('mdt:client:dashboardMessage', -1, Item)
-				-- Send to all clients, for auto updating stuff, ya dig.
 			end)
 		end
 	end
@@ -1520,7 +1610,7 @@ local function isRequestVehicle(vehId)
 	end
 	return found
 end
-exports('isRequestVehicle', isRequestVehicle) -- exports['erp_mdt']:isRequestVehicle()
+exports('isRequestVehicle', isRequestVehicle)
 
 RegisterNetEvent('mdt:server:impoundVehicle', function(sentInfo, sentVehicle)
 	local src = source
@@ -1660,33 +1750,141 @@ QBCore.Functions.CreateCallback('mdt:server:GetPlayerSourceId', function(source,
 end)
 
 QBCore.Functions.CreateCallback('getWeaponInfo', function(source, cb)
-	local Player = QBCore.Functions.GetPlayer(source)
-	local weaponInfo = nil
-	for _, item in pairs(Player.PlayerData.items) do
-	if item.type == "weapon" then
-		local invImage = ("https://cfx-nui-%s/html/images/%s"):format(Config.InventoryForWeaponsImages, item.image)
-		if invImage then
-			weaponInfo = {
-				serialnumber = item.info.serie,
-				owner = Player.PlayerData.charinfo.firstname .. " " .. Player.PlayerData.charinfo.lastname,
-				weaponmodel = QBCore.Shared.Items[item.name].label,
-				weaponurl = invImage,
-				notes = "Self Registered",
-				weapClass = "Class 1",
-			}
-			break
-		end
-	end
-end
-	if weaponInfo then
-			TriggerClientEvent('QBCore:Notify', source, "Weapon has been added to police database. ")
-	else
-			TriggerClientEvent('QBCore:Notify', source, "Weapon already registered on database.")
-	end
-
-	cb(weaponInfo)
+    local Player = QBCore.Functions.GetPlayer(source)
+    local weaponInfos = {}
+    for _, item in pairs(Player.PlayerData.items) do
+        if item.type == "weapon" then
+            local invImage = ("https://cfx-nui-%s/html/images/%s"):format(Config.InventoryForWeaponsImages, item.image)
+            if invImage then
+                local weaponInfo = {
+                    serialnumber = item.info.serie,
+                    owner = Player.PlayerData.charinfo.firstname .. " " .. Player.PlayerData.charinfo.lastname,
+                    weaponmodel = QBCore.Shared.Items[item.name].label,
+                    weaponurl = invImage,
+                    notes = "Self Registered",
+                    weapClass = "Class 1",
+                }
+                table.insert(weaponInfos, weaponInfo)
+            end
+        end
+    end
+    cb(weaponInfos)
 end)
 
 RegisterNetEvent('mdt:server:registerweapon', function(serial, imageurl, notes, owner, weapClass, weapModel) 
     exports['ps-mdt']:CreateWeaponInfo(serial, imageurl, notes, owner, weapClass, weapModel)
 end)
+
+local function giveCitationItem(src, citizenId, fine, incidentId)
+	local Player = QBCore.Functions.GetPlayerByCitizenId(citizenId)
+	local PlayerName = Player.PlayerData.charinfo.firstname .. ' ' .. Player.PlayerData.charinfo.lastname
+	local Officer = QBCore.Functions.GetPlayer(src)
+	local OfficerFullName = '(' .. Officer.PlayerData.metadata.callsign .. ') ' .. Officer.PlayerData.charinfo.firstname .. ' ' .. Officer.PlayerData.charinfo.lastname
+
+	local date = os.date("%Y-%m-%d %H:%M")
+	local info = {
+		citizenId = citizenId,
+		fine = "$"..fine,
+		date = date,
+		incidentId = "#"..incidentId,
+		officer = OfficerFullName,
+	}
+	Player.Functions.AddItem('mdtcitation', 1, false, info)
+	TriggerClientEvent('QBCore:Notify', src, PlayerName.." received a citation!")
+	TriggerClientEvent('inventory:client:ItemBox', Player.PlayerData.source, QBCore.Shared.Items['mdtcitation'], "add")
+	TriggerEvent('mdt:server:AddLog', "A Fine was writen by "..OfficerFullName.." and was sent to "..PlayerName..", the Amount was $".. fine ..". (ID: "..incidentId.. ")")
+end
+
+-- Removes money from the players bank and gives them a citation item
+RegisterNetEvent('mdt:server:removeMoney', function(citizenId, fine, incidentId)
+	local src = source
+	local Player = QBCore.Functions.GetPlayerByCitizenId(citizenId)
+	
+	if not antiSpam then
+		if Player.Functions.RemoveMoney('bank', fine, 'lspd-fine') then
+			TriggerClientEvent('QBCore:Notify', Player.PlayerData.source, fine.."$ was removed from your bank!")
+			giveCitationItem(src, citizenId, fine, incidentId)
+		else
+			TriggerClientEvent('QBCore:Notify', Player.PlayerData.source, "Something went wrong!")
+		end
+		antiSpam = true
+		SetTimeout(60000, function()
+			antiSpam = false
+		end)
+	else
+		TriggerClientEvent('QBCore:Notify', src, "On cooldown!")
+	end
+end)
+
+-- Gives the player a citation item
+RegisterNetEvent('mdt:server:giveCitationItem', function(citizenId, fine, incidentId)
+	local src = source
+	giveCitationItem(src, citizenId, fine, incidentId)
+end)
+
+function getTopOfficers(callback)
+    local result = {}
+    local query = 'SELECT * FROM mdt_clocking ORDER BY total_time DESC LIMIT 25'
+    MySQL.Async.fetchAll(query, {}, function(officers)
+        for k, officer in ipairs(officers) do
+            table.insert(result, {
+                rank = k,
+                name = officer.firstname .. " " .. officer.lastname,
+                callsign = officer.user_id,
+                totalTime = format_time(officer.total_time)
+            })
+        end
+        callback(result)
+    end)
+end
+
+RegisterServerEvent("mdt:requestOfficerData")
+AddEventHandler("mdt:requestOfficerData", function()
+    local src = source
+    getTopOfficers(function(officerData)
+        TriggerClientEvent("mdt:receiveOfficerData", src, officerData)
+    end)
+end)
+
+function sendToDiscord(color, name, message, footer)
+	if Config.ClockinWebhook == '' then
+		print("\27[31mA webhook is missing in: Config.ClockinWebhook\27[0m")
+	else
+		local embed = {
+			{
+				color = color,
+				title = "**".. name .."**",
+				description = message,
+				footer = {
+					text = footer,
+				},
+			}
+		}
+	
+		PerformHttpRequest(Config.ClockinWebhook, function(err, text, headers) end, 'POST', json.encode({username = name, embeds = embed}), { ['Content-Type'] = 'application/json' })
+	end
+end
+
+function format_time(time)
+    local days = math.floor(time / 86400)
+    time = time % 86400
+    local hours = math.floor(time / 3600)
+    time = time % 3600
+    local minutes = math.floor(time / 60)
+    local seconds = time % 60
+
+    local formattedTime = ""
+    if days > 0 then
+        formattedTime = string.format("%d day%s ", days, days == 1 and "" or "s")
+    end
+    if hours > 0 then
+        formattedTime = formattedTime .. string.format("%d hour%s ", hours, hours == 1 and "" or "s")
+    end
+    if minutes > 0 then
+        formattedTime = formattedTime .. string.format("%d minute%s ", minutes, minutes == 1 and "" or "s")
+    end
+    if seconds > 0 then
+        formattedTime = formattedTime .. string.format("%d second%s", seconds, seconds == 1 and "" or "s")
+    end
+    return formattedTime
+end
